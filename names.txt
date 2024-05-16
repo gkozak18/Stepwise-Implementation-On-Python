@@ -1,0 +1,21 @@
+x1a alanineTransminaseA
+x1b alanineTransminaseB
+x2a tBilA
+x2b tBilB
+x3a sBilirubinA
+x3b sBilirubinB
+x4a uBilirubinA
+x4b uBilirubinB
+x5a leukocytesA
+x5b leukocytesB
+x6a creatineA
+x6b creatineB
+x7a ureaA
+x7b ureaB
+x8a alkaninePhospataseA
+x8b alkaninePhospataseB
+q1 aspartateTransminaseA
+q2 aspartateTransminaseB
+u1 cefoperazone
+u2 ampicillinSulbactam
+
