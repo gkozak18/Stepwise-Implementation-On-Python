@@ -50,7 +50,7 @@ def getF(y0, y1, y2, k):
     return res, deltaSSR, MSE
 
 
-def getcandidates(p, u):
+def getcandidates(p, u, rank=2):
     res = p + u
     for i in p:
         for j in p:
@@ -59,15 +59,23 @@ def getcandidates(p, u):
                 res.append(i+"/"+j)
             for k in u:
                 res.append(i+"*"+j+"/"+k)
-                res.append(i+"/"+j+"*"+k)
-    for i in p:
-        for j in p:
-            for k in p:
-                for d in u:
-                    pass
-                    #res.append(i+"*"+j+"/"+k+"*"+d)
-                    #res.append(i+"/"+j+"*"+k+"/"+d)
-                    
+                if i != j:
+                    res.append(i+"/"+j+"*"+k)
+    if rank == 3:
+        for i in p:
+            for j in p:
+                for k in p:
+                    if j != k and i != k:
+                        res.append(i+"*"+j+"/"+k)
+                    if i != j and i != k:
+                        res.append(i+"/"+j+"*"+k)
+                    for d in u:
+                        if j != k and i != k:
+                            res.append(i+"*"+j+"/"+k+"*"+d)
+                            res.append(i+"*"+j+"/"+k+"/"+d)
+                        if i != j and i != k:
+                            res.append(i+"/"+j+"*"+k+"*"+d)
+                            res.append(i+"/"+j+"*"+k+"/"+d)          
     return res
 
 
@@ -96,7 +104,10 @@ def getay(data, model, q):
     #print(x2)
     x3 = x2 @ x.T
     #print(x3)
-    a = x3 @ y0
+    try:
+        a = x3 @ y0
+    except:
+        print(x3, y0)
     #print(a)
     y1 = x @ a
     #print(y1)
@@ -136,9 +147,9 @@ def checkold(data, model, old, q, Fout):
     return F[0] < Fout
 
 
-def stepwise(data, p, u, q, test_size=0.2, save_history=True, print_addings=False):
+def stepwise(data, p, u, q, test_size=0.2, save_history=True, print_addings=False, rank=2):
     train_data, test_data = train_test_split(data, test_size=test_size, random_state=42)
-    candidates = getcandidates(p, u)
+    candidates = getcandidates(p, u, rank=rank)
     members = []
 
     n = train_data.values.shape[0]
@@ -199,7 +210,7 @@ def plot_history(history):
     y3 = history["test_corr"]
     y4 = history["test_adjr2"]
 
-    plt.figure(figsize=(15, 5))
+    plt.figure(figsize=(10, 5))
 
     plt.plot(x, y1, label="train_corr")
     plt.plot(x, y2, label="train_adjr2")
@@ -207,11 +218,13 @@ def plot_history(history):
     plt.plot(x, y4, label="test_adjr2")
 
     plt.title("Історія кореліції та зваженної детермінації при роботі stepwise")
-    plt.xlabel("Додавання та видалення різних з моделі")
+    plt.xlabel("Додавання та видалення різних змінних моделі")
     plt.ylabel("Зміна показників")
     plt.grid(True)
     plt.legend()
+    plt.tight_layout()
     plt.xticks(rotation=60)
+    plt.subplots_adjust(bottom=0.2)
 
     plt.show()
 
@@ -227,7 +240,7 @@ if __name__ == "__main__":
     u = []
     q = "VB"
     t1 = time()
-    model, history = stepwise(data, p, u, q, save_history=False)
+    model, history = stepwise(data, p, u, q, save_history=True)
     print("time:", time() - t1)
     #print("Model:", model)
     y0 = np.array([data[q].to_numpy()]).T
@@ -245,5 +258,5 @@ if __name__ == "__main__":
     adjr2 = get_adjr2(y0, y, n, k)
     print("Скорегований R^2:", adjr2)
 
-    #plot_history(history)
+    plot_history(history)
 
