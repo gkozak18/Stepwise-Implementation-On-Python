@@ -75,7 +75,7 @@ def get_models():
     for_models = q + s
     arrays = []
     for curr_q in for_models:
-        model, history = stepwise(data, p, u, curr_q, save_history=False)
+        model, history = stepwise(data, p, u, curr_q, save_history=False, only_multiplication=True)
         a, y = getay(data, model, curr_q)
         arr = [curr_q, model, a]
         arrays.append(arr)
@@ -88,6 +88,6 @@ def get_models():
 
 
 if __name__ == "__main__":
-    test_data_lab1()
+    # test_data_lab1()
     # test_data_renamed()
-    # get_models()
+    get_models()

@@ -15,6 +15,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt
 import pandas as pd
 import simple_data
+import pulp
 
 
 class MainWindow(QMainWindow):
@@ -150,7 +151,7 @@ class FileWindow(QMainWindow):
 
 
 class PatientData(QWidget):
-    def __init__(self, vars):
+    def __init__(self, vars, default_p = 0):
         super().__init__()
         x0, y0 = 375, 50
         x1, x3 = int(x0 / 4), 3 * int(x0 / 4)
@@ -177,6 +178,8 @@ class PatientData(QWidget):
             label = QLabel(vars[i], self)
             label.setStyleSheet("font-size: 14px;")
             input = QLineEdit(self)
+            if default_p != 0:
+                input.setText(str(default_p[i]))
             label_w, label_h = label.sizeHint().width(), label.sizeHint().height()
             label_x, label_y = x1 - int(label_w / 2), (i + 3) * y0 - y2 - int(label_h / 2)
             input_w, input_h = 140, 30
@@ -193,14 +196,15 @@ class PatientData(QWidget):
             try:
                 float(input.text())
             except:
-                return "Не всі поля параметрів пацієнта введені, або деякі введені некоректно (поля мають містити лише числові дані)"
+                return f"Не всі поля параметрів пацієнта введені, або деякі введені некоректно (поля мають містити лише числові дані)\n{self.vars[i]}='{input.text()}'"
             data.append(float(input.text()))
         return [self.vars, data]
 
 
 class LimitationData(QWidget):
-    def __init__(self, vars):
+    def __init__(self, vars, default_lims = 0):
         super().__init__()
+        self.vars = vars
         x0, y0 = 375, 50
         x1, x3, x5 = int(x0 / 6), 3 * int(x0 / 6), 5 * int(x0 / 6)
         y2 = int(y0 / 2)
@@ -226,6 +230,9 @@ class LimitationData(QWidget):
             label.setStyleSheet("font-size: 14px;")
             input1 = QLineEdit(self)
             input2 = QLineEdit(self)
+            if default_lims != 0:
+                input1.setText(str(default_lims[i][0]))
+                input2.setText(str(default_lims[i][1]))
             label_w, label_h = label.sizeHint().width(), label.sizeHint().height()
             label_x, label_y = x3 - int(label_w / 2), (i + 3) * y0 - y2 - int(label_h / 2)
             input_w, input_h = 100, 30
@@ -241,9 +248,17 @@ class LimitationData(QWidget):
     
     def get_data(self):
         data = []
-        for i in self.inputs:
-            data.append(float(i[0].text()), float(i[1].text()))
-        return data
+        for i, input in enumerate(self.inputs):
+            try:
+                float(input[0].text())
+            except:
+                return f"Проблеми з обмеженнями: min {self.vars[i]} = '{input[0].text()}'"
+            try:
+                float(input[1].text())
+            except:
+                return f"Проблеми з обмеженнями: max {self.vars[i]} = '{input[1].text()}'"
+            data.append([float(input[0].text()), float(input[1].text())])
+        return [self.vars, data]
 
 
 class ResultsData(QWidget):
@@ -265,7 +280,8 @@ class ResultsData(QWidget):
             if results == 0:
                 label2 = QLabel("0", self)
             else:
-                label2 = QLabel(str(results[i]), self)
+                ind = results[0].index(vars[i])
+                label2 = QLabel(str(round(results[1][ind], 4)), self)
             label2.setStyleSheet("font-size: 14px;")
             label1_w, label1_h = label1.sizeHint().width(), label1.sizeHint().height()
             label1_x, label1_y = x1 - int(label1_w / 2), (i + 2) * y0 - y2 - int(label1_h / 2)
@@ -306,23 +322,24 @@ class ShowModels(QWidget):
 
 
 class Results(QMainWindow):
-    def __init__(self, p, s, u, full_models):
+    def __init__(self, p, s, u, q, full_models, default_p = 0, default_lims = 0):
         super().__init__()
         self.full_models = full_models
         title = "Курсова"
         self.setWindowTitle(title)
         w, h = 1240, 830
+        self.p, self.s, self.u, self.q = p, s, u, q
         self.setFixedSize(w, h)
         #self.setGeometry(100, 100, 1000, 800)
 
-        self.patient_widget = PatientData(p)
+        self.patient_widget = PatientData(p, default_p=default_p)
         self.scroll_patient = QScrollArea(self)
         self.scroll_patient.setGeometry(10, 10, 400, 400)
         self.scroll_patient.setStyleSheet("background-color: lightblue;")
         self.scroll_patient.setWidget(self.patient_widget)
         self.scroll_patient.setWidgetResizable(True)
 
-        self.limitation_widget = LimitationData(s + u)
+        self.limitation_widget = LimitationData(s + u, default_lims=default_lims)
         self.scroll_limitation = QScrollArea(self)
         self.scroll_limitation.setGeometry(420, 10, 400, 400)
         self.scroll_limitation.setStyleSheet("background-color: lightblue;")
@@ -349,9 +366,14 @@ class Results(QMainWindow):
         self.scroll_short.setWidget(self.short_models_widget)
 
         self.calc_button = QPushButton("Порахувати", self)
-        self.calc_button.setStyleSheet("background-color: #ff0000;")
+        self.calc_button.setStyleSheet("background-color: #ff0055; font-size: 14px;")
         self.calc_button.clicked.connect(self.calc)
         self.calc_button.setGeometry(625, 720, 300, 100)
+
+        self.back_button = QPushButton("Назад до моделей", self)
+        self.back_button.setStyleSheet("background-color: #ff0055; font-size: 14px;")
+        self.back_button.clicked.connect(self.back)
+        self.back_button.setGeometry(930, 720, 300, 100)
     
     def calc(self):
         values = self.patient_widget.get_data()
@@ -361,6 +383,55 @@ class Results(QMainWindow):
         self.short_models = simple_data.replace_with_values(self.full_models, values)
         self.short_models_widget = ShowModels(self.short_models)
         self.scroll_short.setWidget(self.short_models_widget)
+
+        limitations = self.limitation_widget.get_data()
+        if type(limitations) == str:
+            self.show_message(limitations)
+            return
+        us = []
+        for u in self.u:
+            u_ind = limitations[0].index(u)
+            lim_min, lim_max = limitations[1][u_ind]
+            exec(u + "=pulp.LpVariable('" + u + "'," + str(lim_min) + "," + str(lim_max) + ")")
+            exec("us.append(" + u + ")")
+        model = pulp.LpProblem("Minimization problem", pulp.LpMinimize)
+        # print(self.short_models)
+        for i, arr_model in enumerate(self.short_models):
+            str_model = str(arr_model[1])
+            if arr_model[0] == self.q:
+                text_to_exec = "model+=" + str_model + ", 'Objective function'"
+                exec(text_to_exec)
+                continue
+            s_lim_ind = limitations[0].index(arr_model[0])
+            lim_min, lim_max = limitations[1][s_lim_ind]
+            text_to_exec1 = "model+=" + str_model + "<=" + str(lim_min) + ", 'Constraint " + str(i*2+1) + "'"
+            text_to_exec2 = "model+=" + str_model + ">=" + str(lim_min) + ", 'Constraint " + str(i*2+2) + "'"
+            # print(text_to_exec1)
+            # print(text_to_exec2)
+            exec(text_to_exec1)
+            exec(text_to_exec2)
+        status = model.solve()
+        #print("Status:", pulp.LpStatus[status])
+        values = []
+        pump_values = []
+        for i, u in enumerate(us):
+            # print(self.u[i], pulp.value(u))
+            values.append(pulp.value(u))
+            pump_values.append([self.u[i], pulp.value(u)])
+        values = [self.u, values]
+        result_models = simple_data.replace_with_values(self.short_models, values) + pump_values
+        result_models_values = []
+        result_models_vars = []
+        for res in result_models:
+            result_models_vars.append(res[0])
+            result_models_values.append(res[1])
+        result_models = [result_models_vars, result_models_values]
+        # print(result_models)
+        self.results_widget = ResultsData(self.s + self.u, results=result_models)
+        self.scroll_results.setWidget(self.results_widget)
+    
+    def back(self):
+        self.show_message("Повернутися до моделей можна у повній версії програми")
     
     def show_message(self, message):
         msg_box = QMessageBox()
@@ -373,10 +444,27 @@ class Results(QMainWindow):
 def light_test():
     app = QApplication(sys.argv)
     test_p = ["age", "sex", "x1a", "x2a", "x3a", "x4a", "x5a", "x6a", "x7a", "x8a", "q1"]
-    test_s = ["x1b", "x2b", "x3b", "x4b", "x5b", "x6b", "x7b", "x8b"]
+    test_s = ["x4b", "x5b", "x6b", "x7b"]
     test_u = ["u1", "u2"]
-    test_mosels = simple_data.models
-    window = Results(test_p, test_s, test_u, test_mosels)
+    test_q = "q2"
+    file_name = "data_renamed.xlsx"
+    file = pd.read_excel(file_name)
+    ava_p = []
+    for p in test_p:
+        if p == "sex":
+            ava_p.append(1)
+        else:
+            ava_p.append(file[p].mean())
+    # print(ava_p)
+    def_lims = []
+    for l in test_s + test_u:
+        if p == "sex":
+            def_lims.append([0, 1])
+        else:
+            def_lims.append([file[l].min(), file[l].max()])
+    # print(def_lims)
+    test_mosels = simple_data.models2
+    window = Results(test_p, test_s, test_u, test_q, test_mosels, default_p=ava_p, default_lims=def_lims)
     window.show()
     sys.exit(app.exec_())
 

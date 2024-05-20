@@ -50,7 +50,7 @@ def getF(y0, y1, y2, k):
     return res, deltaSSR, MSE
 
 
-def getcandidates(p, u, rank=2):
+def getcandidates(p, u, rank=2, only_multiplication=True):
     res = p + u
     for i in p:
         for j in p:
@@ -58,7 +58,8 @@ def getcandidates(p, u, rank=2):
             if i != j:
                 res.append(i+"/"+j)
             for k in u:
-                res.append(i+"*"+j+"/"+k)
+                if not only_multiplication:
+                    res.append(i+"*"+j+"/"+k)
                 if i != j:
                     res.append(i+"/"+j+"*"+k)
     if rank == 3:
@@ -147,9 +148,9 @@ def checkold(data, model, old, q, Fout):
     return F[0] < Fout
 
 
-def stepwise(data, p, u, q, test_size=0.2, save_history=True, print_addings=False, rank=2):
+def stepwise(data, p, u, q, test_size=0.2, save_history=True, print_addings=False, rank=2, only_multiplication=True):
     train_data, test_data = train_test_split(data, test_size=test_size, random_state=42)
-    candidates = getcandidates(p, u, rank=rank)
+    candidates = getcandidates(p, u, rank=rank, only_multiplication=only_multiplication)
     members = []
 
     n = train_data.values.shape[0]
