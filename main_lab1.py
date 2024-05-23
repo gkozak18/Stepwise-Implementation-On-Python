@@ -50,33 +50,43 @@ def getF(y0, y1, y2, k):
     return res, deltaSSR, MSE
 
 
-def getcandidates(p, u, rank=2, only_multiplication=True):
-    res = p + u
-    for i in p:
-        for j in p:
-            res.append(i+"*"+j)
-            if i != j:
-                res.append(i+"/"+j)
-            for k in u:
+def getcandidates(p, uu, rank=2, only_multiplication=True):
+    res = p + uu
+    if rank >= 1:
+        for i in p:
+            for u in uu:
+                res.append(i + "*" + u)
                 if not only_multiplication:
-                    res.append(i+"*"+j+"/"+k)
+                    res.append(i + "/" + u)
+    if rank >= 2:
+        for i in p:
+            for j in p:
+                res.append(i + "*" + j)
                 if i != j:
-                    res.append(i+"/"+j+"*"+k)
-    if rank == 3:
+                    res.append(i + "/" + j)
+                for u in uu:
+                    res.append(i+"*"+j+"*"+u)
+                    if not only_multiplication:
+                        res.append(i+"*"+j+"/"+u)
+                    if i != j:
+                        res.append(i+"/"+j+"*"+u)
+    if rank >= 3:
         for i in p:
             for j in p:
                 for k in p:
+                    #res.append(i+"*"+j+"*"+k)
+                    #res.append(i+"/"+j+"/"+k)
                     if j != k and i != k:
                         res.append(i+"*"+j+"/"+k)
                     if i != j and i != k:
                         res.append(i+"/"+j+"*"+k)
-                    for d in u:
+                    for u in uu:
                         if j != k and i != k:
-                            res.append(i+"*"+j+"/"+k+"*"+d)
-                            res.append(i+"*"+j+"/"+k+"/"+d)
+                            res.append(i+"*"+j+"/"+k+"*"+u)
+                            res.append(i+"*"+j+"/"+k+"/"+u)
                         if i != j and i != k:
-                            res.append(i+"/"+j+"*"+k+"*"+d)
-                            res.append(i+"/"+j+"*"+k+"/"+d)          
+                            res.append(i+"/"+j+"*"+k+"*"+u)
+                            res.append(i+"/"+j+"*"+k+"/"+u)          
     return res
 
 
@@ -148,27 +158,35 @@ def checkold(data, model, old, q, Fout):
     return F[0] < Fout
 
 
-def stepwise(data, p, u, q, test_size=0.2, save_history=True, print_addings=False, rank=2, only_multiplication=True):
-    train_data, test_data = train_test_split(data, test_size=test_size, random_state=42)
-    candidates = getcandidates(p, u, rank=rank, only_multiplication=only_multiplication)
+def stepwise(data, p, u, q, Fin=3.87, Fout=2.71, candidates=0, necessary_members=[], test_size=0, save_history=True, print_addings=False, rank=2, only_multiplication=True):
+    if test_size > 0:
+        train_data, test_data = train_test_split(data, test_size=test_size, random_state=42)
+    else:
+        train_data = data
+    if candidates == 0:
+        candidates = getcandidates(p, u, rank=rank, only_multiplication=only_multiplication)
     members = []
+    for cand in candidates:
+        if cand in necessary_members:
+            candidates.remove(cand)
 
     n = train_data.values.shape[0]
     train_y0 = np.array([train_data[q].to_numpy()]).T
-    test_y0 = np.array([test_data[q].to_numpy()]).T
+    if test_size > 0:
+        test_y0 = np.array([test_data[q].to_numpy()]).T
     adding_history = []
     train_corr_history = []
     train_adjr2_history = []
     test_corr_history = []
     test_adjr2_history = []
     for candidate in candidates:
-        if checknew(train_data, members, candidate, q, 3.87):
+        if checknew(train_data, members, candidate, q, Fin):
             members.append(candidate)
             if print_addings:
                 print(candidate, "was added")
             
             # history stuff
-            if save_history:
+            if save_history and test_size > 0:
                 adding_history.append("+" + candidate)
                 train_a, train_y = getay(train_data, members, q)
                 test_a, test_y = getay(test_data, members, q)
@@ -179,13 +197,13 @@ def stepwise(data, p, u, q, test_size=0.2, save_history=True, print_addings=Fals
                 test_adjr2_history.append(get_adjr2(test_y0, test_y, n, k))
             
             for memb in members:
-                if checkold(train_data, members, memb, q, 2.71):
+                if checkold(train_data, members, memb, q, Fout):
                     members.remove(memb)
                     if print_addings:
                         print(memb, "was removed")
 
                     # history stuff
-                    if save_history:
+                    if save_history and test_size > 0:
                         adding_history.append("-" + memb)
                         train_a, train_y = getay(train_data, members, q)
                         test_a, test_y = getay(test_data, members, q)
@@ -201,7 +219,7 @@ def stepwise(data, p, u, q, test_size=0.2, save_history=True, print_addings=Fals
                "test_corr": test_corr_history,
                "test_adjr2": test_adjr2_history}
     
-    return members, history
+    return members + necessary_members, history
 
 
 def plot_history(history):
