@@ -103,8 +103,8 @@ def get_models():
 
 if __name__ == "__main__":
     # test_data_lab1()
-    s = ["q2", "x4b", "x5b", "x6b", "x7b"]
+    s = ["q2", "x1b", "x2b", "x3b", "x4b", "x5b", "x6b", "x7b", "x8b"]
     nece = []
-    F = (3.5, 2)
-    test_data_renamed(s[4], 3, nece_members=nece, F=F, rand=False)
+    F = (2.5, 1.5)
+    test_data_renamed(s[8], 3, nece_members=nece, F=F)
     # get_models()
