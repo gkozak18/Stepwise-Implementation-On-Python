@@ -179,7 +179,7 @@ class MyCandidatesWindow(QWidget):
         label0 = QLabel("Кандидати на вхід до моделі", self)
         label0.setStyleSheet("color: black; font-size: 20px;")
         label0_w, label0_h = label0.sizeHint().width(), label0.sizeHint().height()
-        label0_x, label0_y = 600 - int(label0_w / 2) + m0, h0 - int(label0_h / 2) + m0
+        label0_x, label0_y = 300 - int(label0_w / 2) + m0, h0 - int(label0_h / 2) + m0
         label0.setGeometry(label0_x, label0_y, label0_w, label0_h)
         for i, var in enumerate(vars):
             label = QLabel(var + " =", self)
@@ -203,28 +203,85 @@ class MyCandidatesWindow(QWidget):
                 button.setGeometry(button_x, button_y, h0, h0)
 
 
+class MyMandatoryMembersWindow(QWidget):
+    def __init__(self, parent, vars, members):
+        super().__init__()
+        self.parent = parent
+        w0, w1, h0, m0 = 150, 30, 30, 2
+        vars_n = len(vars)
+        candidates_lens = []
+        for cand in members:
+            candidates_lens.append(len(cand))
+        self.w = (w0 + w1 + 2 * m0) * vars_n + m0
+        self.h = (max(candidates_lens) + 3) * h0 + (max(candidates_lens) + 3) * m0
+        self.setFixedSize(self.w, self.h)
+        label0 = QLabel("Обов'язкові члени моделі", self)
+        label0.setStyleSheet("color: black; font-size: 20px;")
+        label0_w, label0_h = label0.sizeHint().width(), label0.sizeHint().height()
+        label0_x, label0_y = 300 - int(label0_w / 2) + m0, h0 - int(label0_h / 2) + m0
+        label0.setGeometry(label0_x, label0_y, label0_w, label0_h)
+        for i, var in enumerate(vars):
+            label = QLabel(var + " =", self)
+            label.setStyleSheet("color: black; font-size: 14px;")
+            label_w, label_h = label.sizeHint().width(), label.sizeHint().height()
+            label_x = int((w1 + w0 + 2 * m0) * (i + 0.5)) - int(label_w / 2)
+            label_y = int((h0 + m0) * 2.5) - int(label_h / 2)
+            label.setGeometry(label_x, label_y, label_w, label_h)
+            for j, val in enumerate(members[i]):
+                label = QLabel(val, self)
+                label.setStyleSheet("color: black; font-size: 14px;")
+                label_w, label_h = label.sizeHint().width(), label.sizeHint().height()
+                label_x = int((w1 + w0 + 2 * m0) * i) + int((w0 + m0) / 2) - int(label_w / 2)
+                label_y = int((h0 + m0) * (3.5 + j)) - int(label_h / 2)
+                label.setGeometry(label_x, label_y, label_w, label_h)
+                button = QPushButton("-", self)
+                button.setStyleSheet("background-color: white; color: black; font-size: 14px;")
+                button.clicked.connect(lambda checked, var = var, val = val: parent.remove_member(var, val))
+                button_x = int((w1 + w0 + 2 * m0) * (i + 1)) - h0
+                button_y = int((h0 + m0) * (3.5 + j)) - int(label_h / 2)
+                button.setGeometry(button_x, button_y, h0, h0)
+
+
 class SettingStepwiseWindow(QMainWindow):
     def __init__(self, p, s, u, q):
         super().__init__()
         self.w, self.h = 1230, 820
         self.setFixedSize(self.w, self.h)
         self.vars = [q] + s
+
         self.candidates = []
         for var in self.vars:
             candidates = getcandidates(p, u, rank = 1)
             self.candidates.append(candidates)
         
+        self.members = []
+        for var in self.vars:
+            members = [var]
+            self.members.append(members)
+        
         self.candidates_widget = MyCandidatesWindow(self, self.vars, self.candidates)
         self.scroll_candidates = QScrollArea(self)
-        self.scroll_candidates.setGeometry(10, 10, 1200, 400)
+        self.scroll_candidates.setGeometry(10, 10, 600, 400)
         self.scroll_candidates.setStyleSheet("background-color: #ddffff;")
         self.scroll_candidates.setWidget(self.candidates_widget)
+
+        self.members_widget = MyMandatoryMembersWindow(self, self.vars, self.members)
+        self.scroll_members = QScrollArea(self)
+        self.scroll_members.setGeometry(620, 10, 600, 400)
+        self.scroll_members.setStyleSheet("background-color: #ddffff;")
+        self.scroll_members.setWidget(self.members_widget)
     
     def remove_candidate(self, var, val):
         ind = self.vars.index(var)
         self.candidates[ind].remove(val)
         self.candidates_widget = MyCandidatesWindow(self, self.vars, self.candidates)
         self.scroll_candidates.setWidget(self.candidates_widget)
+    
+    def remove_member(self, var, val):
+        ind = self.vars.index(var)
+        self.members[ind].remove(val)
+        self.members_widget = MyMandatoryMembersWindow(self, self.vars, self.members)
+        self.scroll_members.setWidget(self.members_widget)
 
 
 class PatientData(QWidget):
@@ -554,5 +611,5 @@ def main_test():
 
 
 if __name__ == "__main__":
-    light_test()
-    # main_test()
+    # light_test()
+    main_test()
